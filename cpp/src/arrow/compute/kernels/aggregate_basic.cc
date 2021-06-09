@@ -444,6 +444,7 @@ void RegisterScalarAggregateBasic(FunctionRegistry* registry) {
                                 func.get());
   aggregate::AddBasicAggKernels(aggregate::SumInit, FloatingPointTypes(), float64(),
                                 func.get());
+  aggregate::AddBasicAggKernels(aggregate::SumInit, {null()}, null(), func.get());
   // Add the SIMD variants for sum
 #if defined(ARROW_HAVE_RUNTIME_AVX2) || defined(ARROW_HAVE_RUNTIME_AVX512)
   auto cpu_info = arrow::internal::CpuInfo::GetInstance();
@@ -465,6 +466,7 @@ void RegisterScalarAggregateBasic(FunctionRegistry* registry) {
   aggregate::AddBasicAggKernels(aggregate::MeanInit, {boolean()}, float64(), func.get());
   aggregate::AddBasicAggKernels(aggregate::MeanInit, NumericTypes(), float64(),
                                 func.get());
+  aggregate::AddBasicAggKernels(aggregate::MeanInit, {null()}, null(), func.get());
   // Add the SIMD variants for mean
 #if defined(ARROW_HAVE_RUNTIME_AVX2)
   if (cpu_info->IsSupported(arrow::internal::CpuInfo::AVX2)) {
@@ -482,6 +484,7 @@ void RegisterScalarAggregateBasic(FunctionRegistry* registry) {
       "min_max", Arity::Unary(), &min_max_doc, &default_scalar_aggregate_options);
   aggregate::AddMinMaxKernels(aggregate::MinMaxInit, {boolean()}, func.get());
   aggregate::AddMinMaxKernels(aggregate::MinMaxInit, NumericTypes(), func.get());
+  aggregate::AddMinMaxKernels(aggregate::MinMaxInit, {null()}, func.get());
   // Add the SIMD variants for min max
 #if defined(ARROW_HAVE_RUNTIME_AVX2)
   if (cpu_info->IsSupported(arrow::internal::CpuInfo::AVX2)) {

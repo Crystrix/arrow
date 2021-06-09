@@ -49,6 +49,18 @@ void AddMeanAvx512AggKernels(ScalarAggregateFunction* func);
 void AddMinMaxAvx512AggKernels(ScalarAggregateFunction* func);
 
 // ----------------------------------------------------------------------
+// Implementation for null type
+
+struct NullTypeImpl : public ScalarAggregator {
+  Status Consume(KernelContext*, const ExecBatch& batch) override { return Status::OK(); }
+  Status MergeFrom(KernelContext*, KernelState&& src) override { return Status::OK(); }
+  Status Finalize(KernelContext*, Datum* out) override {
+    out->value = MakeNullScalar(null());
+    return Status::OK();
+  }
+};
+
+// ----------------------------------------------------------------------
 // Sum implementation
 
 template <typename ArrowType, SimdLevel::type SimdLevel>
@@ -124,6 +136,11 @@ struct SumLikeInit {
 
   Status Visit(const BooleanType&) {
     state.reset(new KernelClass<BooleanType>(options));
+    return Status::OK();
+  }
+
+  Status Visit(const NullType&) {
+    state.reset(new NullTypeImpl());
     return Status::OK();
   }
 
@@ -391,6 +408,11 @@ struct MinMaxInitState {
 
   Status Visit(const BooleanType&) {
     state.reset(new BooleanMinMaxImpl<SimdLevel>(out_type, options));
+    return Status::OK();
+  }
+
+  Status Visit(const NullType&) {
+    state.reset(new NullTypeImpl());
     return Status::OK();
   }
 

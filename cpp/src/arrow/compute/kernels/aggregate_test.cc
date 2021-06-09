@@ -229,6 +229,71 @@ TEST(TestBooleanAggregation, Mean) {
                            ScalarAggregateOptions(/*skip_nulls=*/false, /*min_count=*/3));
 }
 
+template <UnaryOp& Op, typename ScalarType>
+void ValidateNullAgg(
+    const std::string& json, const std::shared_ptr<ScalarType>& expected,
+    const ScalarAggregateOptions& options = ScalarAggregateOptions::Defaults()) {
+  auto array = ArrayFromJSON(null(), json);
+  ASSERT_OK_AND_ASSIGN(Datum result, Op(array, options, nullptr));
+
+  const auto& exp = Datum(expected);
+  ASSERT_TRUE(result.Equals(exp));
+}
+
+template <UnaryOp& Op, typename ScalarType>
+void ValidateNullAgg(
+    const std::vector<std::string>& json, const std::shared_ptr<ScalarType>& expected,
+    const ScalarAggregateOptions& options = ScalarAggregateOptions::Defaults()) {
+  auto array = ChunkedArrayFromJSON(null(), json);
+  ASSERT_OK_AND_ASSIGN(Datum result, Op(array, options, nullptr));
+
+  const auto& exp = Datum(expected);
+  ASSERT_TRUE(result.Equals(exp));
+}
+
+template <UnaryOp& Op>
+void TestNullNonCountAgg() {
+  ValidateNullAgg<Op>("[]", std::make_shared<NullScalar>());
+  ValidateNullAgg<Op>("[null]", std::make_shared<NullScalar>());
+  ValidateNullAgg<Op>("[null, null]", std::make_shared<NullScalar>());
+
+  std::vector<std::string> chunked_input0 = {"[]", "[]"};
+  std::vector<std::string> chunked_input1 = {"[]", "[null]"};
+  std::vector<std::string> chunked_input2 = {"[null]", "[null, null]"};
+  ValidateNullAgg<Op>(chunked_input0, std::make_shared<NullScalar>());
+  ValidateNullAgg<Op>(chunked_input1, std::make_shared<NullScalar>());
+  ValidateNullAgg<Op>(chunked_input2, std::make_shared<NullScalar>());
+}
+
+TEST(TestNullAggregation, NonCount) {
+  TestNullNonCountAgg<Sum>();
+  TestNullNonCountAgg<Mean>();
+  TestNullNonCountAgg<MinMax>();
+}
+
+TEST(TestNullAggregation, Count) {
+  const ScalarAggregateOptions& all = ScalarAggregateOptions(/*skip_nulls=*/true);
+  ValidateNullAgg<Count>("[]", std::make_shared<Int64Scalar>(0), all);
+  ValidateNullAgg<Count>("[null]", std::make_shared<Int64Scalar>(0), all);
+  ValidateNullAgg<Count>("[null, null]", std::make_shared<Int64Scalar>(0), all);
+
+  std::vector<std::string> chunked_input0 = {"[]", "[]"};
+  std::vector<std::string> chunked_input1 = {"[]", "[null]"};
+  std::vector<std::string> chunked_input2 = {"[null]", "[null, null]"};
+  ValidateNullAgg<Count>(chunked_input0, std::make_shared<Int64Scalar>(0), all);
+  ValidateNullAgg<Count>(chunked_input1, std::make_shared<Int64Scalar>(0), all);
+  ValidateNullAgg<Count>(chunked_input2, std::make_shared<Int64Scalar>(0), all);
+
+  const ScalarAggregateOptions& nulls = ScalarAggregateOptions(/*skip_nulls=*/false);
+  ValidateNullAgg<Count>("[]", std::make_shared<Int64Scalar>(0), nulls);
+  ValidateNullAgg<Count>("[null]", std::make_shared<Int64Scalar>(1), nulls);
+  ValidateNullAgg<Count>("[null, null]", std::make_shared<Int64Scalar>(2), nulls);
+
+  ValidateNullAgg<Count>(chunked_input0, std::make_shared<Int64Scalar>(0), nulls);
+  ValidateNullAgg<Count>(chunked_input1, std::make_shared<Int64Scalar>(1), nulls);
+  ValidateNullAgg<Count>(chunked_input2, std::make_shared<Int64Scalar>(3), nulls);
+}
+
 template <typename ArrowType>
 class TestNumericSumKernel : public ::testing::Test {};
 
